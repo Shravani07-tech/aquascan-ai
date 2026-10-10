@@ -1,0 +1,24 @@
+# Environment
+.venv/
+__pycache__/
+*.pyc
+
+# Datasets (large; tracked outside git)
+dataset_clean/
+dataset_raw/
+dataset_webcam/
+
+# Training runs / outputs / large artifacts
+runs/
+outputs/
+*.zip
+*.pt
+
+# Rolling webcam debug snapshot (overwritten every frame; may contain people)
+scratch/webcam_debug.jpg
+
+# Frame-collector output (if enabled)
+debug_frames/
+
+# Local-only evidence frames that contain people (never commit)
+scratch/private/

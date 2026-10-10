@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaScan AI — Marine Floating Waste Perception Platform</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.5 0 2.5 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+            <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+            <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>AquaScan <span class="accent-text">AI</span></h1>
+          <p class="tagline">Marine Intelligence Platform</p>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-pill" id="model-status-pill">
+          <span class="status-dot pulsing" id="status-dot"></span>
+          <span class="status-label" id="model-status-text">MODEL ONLINE</span>
+        </div>
+        <div class="device-pill">
+          <span id="device-info-text">YOLOv8n • CPU • Ready</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-layout">
+    
+    <!-- Left Sidebar: Controls & Upload -->
+    <aside class="control-panel glass-card">
+      
+      <!-- Camera Source Selector -->
+      <div class="panel-section">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Camera Source
+        </h2>
+        <div class="source-selector" id="source-selector">
+          <button type="button" class="source-btn active" data-source="webcam">
+            <span class="source-icon">💻</span>
+            <span class="source-name">Laptop Webcam</span>
+          </button>
+          <button type="button" class="source-btn" data-source="rpi">
+            <span class="source-icon">🍓</span>
+            <span class="source-name">Raspberry Pi</span>
+          </button>
+          <button type="button" class="source-btn" data-source="upload">
+            <span class="source-icon">📁</span>
+            <span class="source-name">Upload / Demo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section A: Laptop Webcam Controls -->
+      <div class="panel-section source-panel-section" id="panel-section-webcam">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Live Webcam Control
+        </h2>
+        <p class="section-desc">Stream live browser video to YOLOv8 inference pipeline (~2-5 FPS):</p>
+        
+        <div class="webcam-controls">
+          <button type="button" class="btn btn-primary" id="btn-start-webcam">
+            <span>Start Camera</span>
+          </button>
+          <button type="button" class="btn btn-secondary hidden" id="btn-stop-webcam">
+            <span>Stop Camera</span>
+          </button>
+        </div>
+        
+        <div class="stream-status-box" id="webcam-status-box">
+          <span class="status-dot-sm" id="webcam-dot"></span>
+          <span id="webcam-status-text">Webcam Standby</span>
+        </div>
+      </div>
+
+      <!-- Section B: Raspberry Pi Telemetry Card -->
+      <div class="panel-section source-panel-section hidden" id="panel-section-rpi">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          Raspberry Pi Edge Status
+        </h2>
+        <p class="section-desc">Receiving live hardware stream from LAN client (`rpi_client.py`):</p>
+        
+        <div class="rpi-telemetry-card" id="rpi-telemetry-card">
+          <div class="telemetry-row">
+            <span class="telemetry-label">Source:</span>
+            <span class="telemetry-val" id="rpi-val-source">Raspberry Pi</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Device ID:</span>
+            <span class="telemetry-val highlight" id="rpi-val-device">aquascan-pi-01</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Camera ID:</span>
+            <span class="telemetry-val" id="rpi-val-camera">picam-v2</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Frame ID:</span>
+            <span class="telemetry-val mono" id="rpi-val-frame">#----</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Connection:</span>
+            <span class="connection-badge offline" id="rpi-val-status">OFFLINE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section C: Image Upload -->
+      <div class="panel-section source-panel-section hidden" id="panel-section-upload">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Image Upload
+        </h2>
+
+        <!-- File Dropzone -->
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept="image/*" class="file-input-hidden">
+          <div class="dropzone-content" id="dropzone-idle">
+            <div class="upload-icon">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <p class="upload-prompt">Drag & drop marine photo here</p>
+            <p class="upload-subtext">or <span class="browse-btn">browse file</span> from disk</p>
+            <p class="upload-limit">JPG, PNG, WebP up to 15 MB</p>
+          </div>
+          <div class="dropzone-content hidden" id="dropzone-preview">
+            <img id="preview-thumb" src="" alt="Upload Preview">
+            <div class="preview-info">
+              <p id="preview-filename" class="preview-filename"></p>
+              <p id="preview-filesize" class="preview-filesize"></p>
+            </div>
+            <button type="button" class="btn-icon-clear" id="btn-remove-file" title="Remove File">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1-Click Demo Presentation Selector -->
+      <div class="panel-section source-panel-section hidden" id="panel-section-samples">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Try a Demo
+        </h2>
+        <p class="section-desc">Click any sample image for 1-click presentation analysis:</p>
+        <div class="sample-grid" id="sample-grid">
+          <div class="sample-loading-skeleton">Loading samples...</div>
+        </div>
+      </div>
+
+      <!-- Detection Parameters -->
+      <div class="panel-section">
+        <h2 class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Confidence Threshold
+        </h2>
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>Minimum Confidence:</span>
+            <span class="slider-value" id="conf-val">25%</span>
+          </div>
+          <input type="range" id="conf-slider" min="10" max="95" value="25" step="5">
+          <div class="slider-ticks">
+            <span>10%</span>
+            <span>50%</span>
+            <span>95%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons (for Upload Mode) -->
+      <div class="action-group hidden" id="upload-action-group">
+        <button type="button" class="btn btn-primary" id="btn-analyze" disabled>
+          <span class="btn-text">Analyze Marine Image</span>
+          <span class="btn-spinner hidden" id="btn-spinner"></span>
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-reset">Reset</button>
+      </div>
+
+    </aside>
+
+    <!-- Right Workspace: Visual Output & Analytics -->
+    <section class="workspace-panel glass-card">
+      
+      <!-- Top Action Bar -->
+      <div class="workspace-header">
+        <div class="workspace-title">
+          <h2>Perception Canvas</h2>
+          <span class="badge" id="detection-count-badge">0 Objects</span>
+        </div>
+
+        <div class="view-toggle" id="view-toggle">
+          <button class="toggle-btn active" data-mode="canvas">Interactive Canvas</button>
+          <button class="toggle-btn" data-mode="annotated">Rendered Overlay</button>
+        </div>
+      </div>
+
+      <!-- Viewer Container -->
+      <div class="viewer-container" id="viewer-container">
+        
+        <!-- State 1: Idle -->
+        <div class="state-view" id="state-idle">
+          <div class="state-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <circle cx="12" cy="11" r="3"/>
+            </svg>
+          </div>
+          <h3 id="idle-title">Select Camera Source</h3>
+          <p id="idle-desc">Choose Laptop Webcam, Raspberry Pi, or Upload / Demo to start real-time YOLOv8 waste detection.</p>
+        </div>
+
+        <!-- State 2: Processing Radar -->
+        <div class="state-view hidden" id="state-loading">
+          <div class="radar-spinner">
+            <div class="radar-sweep"></div>
+          </div>
+          <h3>Analyzing Marine Debris...</h3>
+          <p class="loading-status-text" id="loading-status-text">Executing YOLOv8 neural network inference</p>
+        </div>
+
+        <!-- State 3: Model Standby Banner -->
+        <div class="banner-standby hidden" id="standby-banner">
+          <span class="banner-icon">ℹ️</span>
+          <div class="banner-content">
+            <strong>Running on Pretrained Model (`yolov8n.pt`)</strong>
+            <p>Full 30-epoch training is running separately in Colab. Drop `best.pt` into `models/` when ready.</p>
+          </div>
+        </div>
+
+        <!-- State 4: Canvas Display & Stream Viewport -->
+        <div class="canvas-wrapper hidden" id="canvas-wrapper">
+          <div class="canvas-container" id="canvas-container">
+            <!-- Video for Laptop Webcam -->
+            <video id="webcam-video" class="stream-element hidden" autoplay playsinline muted></video>
+            
+            <!-- Image element for Raspberry Pi Stream -->
+            <img id="rpi-image" class="stream-element hidden" src="" alt="Raspberry Pi Stream">
+
+            <!-- Detection Overlay Canvas -->
+            <canvas id="detection-canvas"></canvas>
+            <div class="canvas-tooltip hidden" id="canvas-tooltip"></div>
+          </div>
+          <img id="annotated-image" class="annotated-img hidden" src="" alt="YOLO Annotated Output">
+        </div>
+
+        <!-- State 5: Clean Water (Zero Detections) -->
+        <div class="state-view hidden" id="state-clean">
+          <div class="state-icon clean-icon">🌊</div>
+          <h3>Clean Water / No Waste Detected</h3>
+          <p>No floating plastics, bottles, cans, cartons, or marine debris identified above the selected confidence threshold.</p>
+        </div>
+
+        <!-- State 6: Error -->
+        <div class="state-view hidden" id="state-error">
+          <div class="state-icon error-icon">⚠️</div>
+          <h3 id="error-title">Inference Error</h3>
+          <p id="error-message">Failed to process image.</p>
+          <button class="btn btn-secondary" id="btn-error-retry">Try Again</button>
+        </div>
+
+      </div>
+
+      <!-- Detection Summary & Latency Panel -->
+      <div class="analytics-bar" id="analytics-bar">
+        
+        <!-- Category Badges -->
+        <div class="category-breakdown">
+          <div class="cat-pill bottle-pill">
+            <span class="cat-dot" style="background: var(--color-bottle);"></span>
+            <span class="cat-name">Bottle:</span>
+            <span class="cat-count" id="count-bottle">0</span>
+          </div>
+          <div class="cat-pill can-pill">
+            <span class="cat-dot" style="background: var(--color-can);"></span>
+            <span class="cat-name">Can:</span>
+            <span class="cat-count" id="count-can">0</span>
+          </div>
+          <div class="cat-pill carton-pill">
+            <span class="cat-dot" style="background: var(--color-carton);"></span>
+            <span class="cat-name">Carton:</span>
+            <span class="cat-count" id="count-carton">0</span>
+          </div>
+          <div class="cat-pill paper-pill">
+            <span class="cat-dot" style="background: var(--color-paper);"></span>
+            <span class="cat-name">Paper:</span>
+            <span class="cat-count" id="count-paper">0</span>
+          </div>
+          <div class="cat-pill plastic-pill">
+            <span class="cat-dot" style="background: var(--color-plastic);"></span>
+            <span class="cat-name">Plastic:</span>
+            <span class="cat-count" id="count-plastic">0</span>
+          </div>
+        </div>
+
+        <!-- Latency Statistics -->
+        <div class="latency-stats">
+          <div class="stat-item">
+            <span class="stat-label">Inference Time</span>
+            <span class="stat-val" id="stat-latency">-- ms</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Throughput</span>
+            <span class="stat-val" id="stat-fps">-- FPS</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <script src="js/app.js"></script>
+</body>
+</html>
