@@ -55,7 +55,8 @@ Clear env vars between browser tests: `Remove-Item Env:PRELOAD, Env:PRE_SCRIPT, 
   pool-deck strip and resized to webcam size. Expected at webcam settings (imgsz=416, conf 0.20):
   bottle ≈92% at ≈[411, 141, 554, 243], plastic ≈82%. The previous frame (a real webcam frame
   containing a person; the imgsz=416 evidence of handoff §5) is kept locally, untracked, at
-  `scratch/private/webcam_reference_frame_with_person.jpg`; it remains in commit 36bbe9d history.
+  `scratch/private/webcam_reference_frame_with_person.jpg` (untracked). It is no longer in the git history
+  (history cleaned on 2026-10-10; see the history note below).
 - **#7**, `scripts/evaluate_models.py` and `scratch/inspect_webcam_adaptation_status.py` always use
   `scratch_frame.jpg` (expected: BOTTLE ≈92% at webcam settings). They no longer read the rolling
   `scratch\webcam_debug.jpg`, which any webcam-mode request overwrites.
@@ -91,6 +92,14 @@ people). Never present with `AQUASCAN_SAVE_FRAMES` set. When enabled, the server
 `FRAME COLLECTOR ON -> ...debug_frames` banner at startup. After a collection session, **close that
 PowerShell window** (or run `Remove-Item Env:AQUASCAN_SAVE_FRAMES, Env:AQUASCAN_PHASE`) so the variables
 cannot carry over into the presentation server.
+
+## History note (2026-10-10)
+
+The git history was reset to a single clean commit (`abc8cea`, tag `release-2026-10-10`) because an early
+commit contained a webcam frame with people. The commit hashes in the results log below (`b41e27c` …
+`09b3fc2`) and in FINAL_STATUS.md refer to that earlier history, archived locally (never uploaded) in
+`C:\Users\Shailesh Mayekar\AquaScan-history-archive.bundle`. To inspect it:
+`git clone <bundle path> aquascan-history`. The application code at `abc8cea` is identical to `09b3fc2`.
 
 ## Results log
 

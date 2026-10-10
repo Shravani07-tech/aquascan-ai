@@ -1,5 +1,11 @@
 # AquaScan AI — Final Status (2026-10-10, tag `release-2026-10-10`)
 
+**Repository:** private GitHub `Shravani07-tech/aquascan-ai`, branch `main`. History was reset on 2026-10-10 to a
+single clean commit (`abc8cea`, tags `release-2026-10-10` and `release-2026-10-10-backup`) because an early commit
+contained a webcam frame with people. Commit hashes below (`dc8c6ab`, `01fcc5c`, `65e1533`, `09b3fc2`, …) refer to the
+earlier history, archived locally only in `C:\Users\Shailesh Mayekar\AquaScan-history-archive.bundle` (verified,
+27 commits; never uploaded). Application code at `abc8cea` is identical to the tested `09b3fc2`.
+
 ## What works (verified on real hardware)
 - **Laptop app**: FastAPI backend + browser UI; Laptop Webcam / Raspberry Pi / Upload-Demo modes. Full
   TESTING.md regression **PASS** on `09b3fc2` (2026-10-10 12:25, laptop on AC): #0–#15 and #17 all pass (see Regression).
