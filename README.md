@@ -216,19 +216,32 @@ curl http://192.168.1.100:8000/api/status
 
 ---
 
-## 🍓 Future Physical Hardware Integration
+## 🍓 Raspberry Pi Hardware (verified on a real Pi 5)
 
-*(To be performed when physical Raspberry Pi and Pi Camera are available)*
+Verified 2026-10-09/10 on a **Raspberry Pi 5 (2 GB)** with the **ov5647 Pi camera module**, Raspberry Pi OS
+(Debian 13), Python 3.13. Full setup, offline install, smoke test and troubleshooting: **[PI_SETUP.md](PI_SETUP.md)**.
 
-### Step 1: Install Dependencies on Raspberry Pi
+| Mode | Pipeline | Measured |
+|---|---|---|
+| **Plan A** | Pi camera → `hardware/rpi_client.py --backend picamera2` → laptop backend → `best.pt` → dashboard **Raspberry Pi** panel | **3.8 fps**, 120/120 frames HTTP 200, round trip p50 119 ms |
+| **Plan B** | Pi camera → `hardware/pi_edge_infer.py` → `best.pt` **on the Pi CPU** (headless; FPS + detections in the terminal, annotated frames saved on the Pi) | **~9 fps sustained** at `--threads 1` (default), **≤70 °C** without a fan; same detections as the laptop |
+
+Plan A (laptop backend running; use the laptop's current LAN IP):
 ```bash
-pip install requests picamera2  # or opencv-python
+ssh shanki@<PI_IP> "cd ~/aquascan && .venv/bin/python hardware/rpi_client.py --server http://<PC_LAN_IP>:8000 --device-id aquascan-pi5 --camera-id ov5647 --backend picamera2 --rotate 180 --loop --interval 0.1"
 ```
-
-### Step 2: Run Edge Client Script on Raspberry Pi
+Plan B (on the Pi):
 ```bash
-python hardware/rpi_client.py --server http://<PC_LAN_IP>:8000 --device-id aquascan-pi-college --conf 0.10
+ssh shanki@<PI_IP> "cd ~/aquascan && .venv/bin/python hardware/pi_edge_infer.py --model models/best.pt --rotate 180 --frames 0"
 ```
+Notes: `--rotate 180` is for the demo rig's upside-down camera mount (drop it if mounted upright). Do not run Plan A
+and Plan B at the same time (both open the camera). With a Pi 5 active cooler, `--threads 4` gives ~10 fps — re-check
+temperatures first.
+
+**Open items:** the **water-scene detection test** (v2 §17: ≥60% detection, ≤0.10 false positives/frame) is still
+pending — not allowed in the lab; and **imgsz is unvalidated** (webcam 416, Plan A 640, Plan B 416): the 416 evidence
+frame was a false positive on a person, so 416 vs 640 must be compared on the same saved water-scene frames. Indoors
+the model gives false positives on ceiling lights and logos — point the camera down at water/floor, never at the ceiling.
 
 ---
 
