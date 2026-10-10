@@ -33,10 +33,12 @@ class RPiStreamStore:
                     "last_updated": self.last_updated
                 }
 
-            is_active = (time.time() - self.last_updated) <= max_age_seconds
+            age = time.time() - self.last_updated
+            is_active = age <= max_age_seconds
             return {
                 "success": True,
                 "active": is_active,
+                "age_seconds": round(age, 2),
                 "hardware_metadata": self.latest_metadata,
                 "prediction": self.latest_prediction,
                 "last_updated": self.last_updated,

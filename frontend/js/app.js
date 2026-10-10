@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const rpiValCamera = document.getElementById('rpi-val-camera');
   const rpiValFrame = document.getElementById('rpi-val-frame');
   const rpiValStatus = document.getElementById('rpi-val-status');
+  const rpiValInference = document.getElementById('rpi-val-inference');
+  const EDGE_STALE_S = 3; // edge frames older than this are shown as OFFLINE, not live
 
   // Upload & Demo Controls
   const dropzone = document.getElementById('dropzone');
@@ -682,13 +684,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/rpi/latest');
       if (!res.ok) throw new Error('API server error');
       const data = await res.json();
+      const isEdge = !!(data.hardware_metadata && data.hardware_metadata.inference_location === 'edge');
+      const edgeStale = isEdge && data.age_seconds > EDGE_STALE_S;
 
-      if (data.success && data.active && data.prediction) {
+      if (edgeStale) {
+        // Edge mode: no new frame from the Pi for > EDGE_STALE_S; keep the last frame but don't look live
+        rpiValStatus.textContent = `OFFLINE — last frame ${Math.round(data.age_seconds)} s ago`;
+        rpiValStatus.className = 'connection-badge offline';
+      } else if (data.success && data.active && data.prediction) {
         // Active Pi Stream Frame Received
         rpiValStatus.textContent = 'ONLINE';
         rpiValStatus.className = 'connection-badge online';
 
         const meta = data.hardware_metadata || {};
+        if (isEdge) {
+          const num = (v, d) => (typeof v === 'number' ? v.toFixed(d) : '--');
+          rpiValInference.textContent = `Edge inference (on Pi) · ${num(meta.edge_fps, 1)} FPS · ${num(meta.inference_ms, 0)} ms · ${num(meta.cpu_temp_c, 1)} °C`;
+        } else {
+          rpiValInference.textContent = 'Laptop inference';
+        }
         rpiValSource.textContent = meta.source || 'raspberry_pi';
         rpiValDevice.textContent = meta.device_id || 'aquascan-pi-01';
         rpiValCamera.textContent = meta.camera_id || 'picam-v2';

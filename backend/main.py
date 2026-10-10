@@ -10,6 +10,7 @@ from backend.services.inference import inference_service
 from backend.services.samples import sample_service
 from backend.services.rpi_stream import rpi_stream_store
 from backend.services import frame_collector
+from backend.services.edge_ingest import EdgeIngestError, parse_meta, build_state
 
 app = FastAPI(
     title="AquaScan AI — Marine Waste Perception Service",
@@ -89,6 +90,27 @@ async def get_latest_rpi_image():
             content={"success": False, "error": "No Raspberry Pi image available yet"}
         )
     return Response(content=image_bytes, media_type="image/jpeg")
+
+@app.post("/api/edge/ingest")
+async def edge_ingest(file: UploadFile = File(...), meta: str = Form(...)):
+    """Edge mode: the Raspberry Pi already ran inference. Store its frame + detections for the
+    Raspberry Pi dashboard panel. No inference on the laptop for this path."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return JSONResponse(status_code=400, content={"success": False, "error_type": "invalid_extension",
+                            "error": f"Unsupported file format '{ext}'. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"})
+    image_bytes = await file.read()
+    if len(image_bytes) == 0:
+        return JSONResponse(status_code=400, content={"success": False, "error_type": "empty_file", "error": "Uploaded image file is empty (0 bytes)."})
+    if len(image_bytes) > MAX_FILE_SIZE:
+        return JSONResponse(status_code=400, content={"success": False, "error_type": "oversized_upload",
+                            "error": f"File size exceeds maximum allowed upload limit of {MAX_FILE_SIZE // (1024*1024)} MB."})
+    try:
+        prediction, metadata = await run_in_threadpool(build_state, image_bytes, parse_meta(meta))
+    except EdgeIngestError as e:
+        return JSONResponse(status_code=400, content={"success": False, "error_type": "invalid_edge_payload", "error": str(e)})
+    rpi_stream_store.update(image_bytes, prediction, metadata)
+    return {"success": True, "frame_id": metadata["frame_id"], "count": prediction["count"], "received_at": metadata["received_at"]}
 
 @app.post("/api/predict")
 async def predict(

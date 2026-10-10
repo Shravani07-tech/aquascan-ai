@@ -1,0 +1,18 @@
+[Unit]
+Description=AquaScan AI edge inference (best.pt on the Pi -> laptop dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shanki
+WorkingDirectory=/home/shanki/aquascan
+# Laptop URL, send fps and JPEG quality live here so a DHCP IP change is a one-line edit
+EnvironmentFile=/home/shanki/aquascan/edge.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/shanki/aquascan/.venv/bin/python hardware/pi_edge_infer.py --model models/best.pt --rotate 180 --frames 0 --save-every 0 --log-every 50 --server ${AQUASCAN_SERVER} --send-fps ${AQUASCAN_SEND_FPS} --send-quality ${AQUASCAN_SEND_QUALITY}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

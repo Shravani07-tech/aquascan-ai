@@ -20,7 +20,9 @@ Usage (on the Pi, inside ~/aquascan, venv created with --system-site-packages):
   .venv/bin/python hardware/pi_edge_infer.py --model models/best_ncnn_model --frames 0          # 0 = until Ctrl+C
 """
 import argparse
+import json
 import os
+import threading
 import time
 from collections import deque
 
@@ -38,6 +40,12 @@ def parse_args():
     p.add_argument("--threads", type=int, default=1, help="torch CPU threads (default 1; 0 = Ultralytics default, cores - 1)")
     p.add_argument("--width", type=int, default=640)
     p.add_argument("--height", type=int, default=480)
+    p.add_argument("--server", default=None, help="Edge mode: POST frames + detections to <server>/api/edge/ingest (e.g. http://172.24.21.133:8000)")
+    p.add_argument("--send-fps", type=float, default=5.0, help="Max frames/s sent to --server (inference still runs at full speed)")
+    p.add_argument("--send-quality", type=int, default=70, help="JPEG quality of frames sent to --server")
+    p.add_argument("--log-every", type=int, default=1, help="Print one per-frame line every N frames (service uses 50)")
+    p.add_argument("--device-id", default="aquascan-pi5")
+    p.add_argument("--camera-id", default="ov5647")
     p.add_argument("--save-dir", default="edge_output", help="Where annotated frames are written")
     p.add_argument("--save-every", type=int, default=5, help="Also save every Nth frame into the ring (0 = off)")
     p.add_argument("--ring", type=int, default=20, help="Number of ring files to cycle through")
@@ -66,6 +74,74 @@ def cpu_temp_c():
 def pct(values, q):
     s = sorted(values)
     return s[min(len(s) - 1, int(q * len(s)))] if s else float("nan")
+
+
+class EdgeSender:
+    """Background sender for edge mode. offer() never blocks: it drops the frame into a 1-slot mailbox
+    (replacing an unsent one). The thread JPEG-encodes and POSTs it; network errors back off (1 s -> 30 s)
+    and are counted, never raised, so the network can neither slow down nor stop inference."""
+
+    def __init__(self, server, quality):
+        import cv2
+        import requests
+        self.cv2, self.requests = cv2, requests
+        self.url = server.rstrip("/") + "/api/edge/ingest"
+        self.quality = quality
+        self.session = requests.Session()
+        self.lock, self.wake = threading.Lock(), threading.Event()
+        self.slot = None
+        self.sent = self.failed = self.replaced = self.skipped_backoff = 0
+        self.bytes_sent, self.rtts = 0, []
+        self.backoff, self.next_try, self.down_since = 0.0, 0.0, None
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def offer(self, frame_bgr, meta):
+        with self.lock:
+            if self.slot is not None:
+                self.replaced += 1
+            self.slot = (frame_bgr, meta)
+        self.wake.set()
+
+    def _run(self):
+        while True:
+            self.wake.wait(0.5)
+            self.wake.clear()
+            with self.lock:
+                item, self.slot = self.slot, None
+            if item is None:
+                continue
+            if time.time() < self.next_try:
+                self.skipped_backoff += 1  # server down: drop this frame, retry after the backoff
+                continue
+            frame, meta = item
+            try:
+                ok, buf = self.cv2.imencode(".jpg", frame, [int(self.cv2.IMWRITE_JPEG_QUALITY), self.quality])
+                data = buf.tobytes()
+                t0 = time.time()
+                r = self.session.post(self.url, files={"file": ("frame.jpg", data, "image/jpeg")},
+                                      data={"meta": json.dumps(meta)}, timeout=2.0)
+                if r.status_code != 200:
+                    raise RuntimeError(f"HTTP {r.status_code}: {r.text[:120]}")
+                self.rtts.append((time.time() - t0) * 1000)
+                self.sent += 1
+                self.bytes_sent += len(data)
+                if self.down_since is not None:
+                    print(f"[edge] server reachable again after {time.time() - self.down_since:.0f}s")
+                self.backoff, self.down_since = 0.0, None
+            except Exception as e:  # network or server error: count, back off, keep going
+                self.failed += 1
+                self.backoff = min(max(1.0, self.backoff * 2), 30.0)
+                self.next_try = time.time() + self.backoff
+                if self.down_since is None:
+                    self.down_since = time.time()
+                    print(f"[edge] send failed ({type(e).__name__}: {str(e)[:100]}); inference continues, retrying with backoff")
+
+    def summary(self, elapsed):
+        n = self.sent
+        return (f"EDGE SEND: sent {n} | failed {self.failed} | replaced-unsent {self.replaced} | dropped-during-backoff "
+                f"{self.skipped_backoff} | {self.bytes_sent / max(n, 1) / 1024:.1f} KB/frame | "
+                f"{self.bytes_sent / max(elapsed, 1e-9) / 1e6:.3f} MB/s | send RTT p50 {pct(self.rtts, 0.5):.0f} ms "
+                f"p90 {pct(self.rtts, 0.9):.0f} ms")
 
 
 def describe(model, r):
@@ -124,13 +200,20 @@ def main():
     model.predict(cam.capture_array(), imgsz=args.imgsz, conf=args.conf, verbose=False)
     apply_threads()
 
+    sender = EdgeSender(args.server, args.send_quality) if args.server else None
+    send_interval = 1.0 / args.send_fps if args.send_fps > 0 else 0.0
+    last_offer, throttled = 0.0, 0
+
     recent = deque(maxlen=10)
     infer_times, n, peak_rss = [], 0, rss_mb()
     t_start = t_prev = time.time()
     print(f"Running on-device inference (imgsz={args.imgsz}, conf={args.conf}, rotate={args.rotate}). Ctrl+C to stop.")
+    if sender:
+        print(f"Edge mode: sending to {sender.url} at <= {args.send_fps} fps, JPEG quality {args.send_quality}")
     try:
         while args.frames == 0 or n < args.frames:
             # Picamera2 RGB888 arrays are [B, G, R] (verified on this Pi), which is what YOLO expects for numpy input
+            captured_at = time.time()
             frame_bgr = cam.capture_array()
             t0 = time.time()
             r = model.predict(frame_bgr, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
@@ -145,7 +228,21 @@ def main():
             peak_rss = max(peak_rss, rss_mb())
 
             dets, det_str = describe(model, r)
-            print(f"[{n:04d}] {len(dets)} obj ({det_str}) | infer {infer_ms:.0f} ms | {fps:.2f} FPS")
+            if args.log_every <= 1 or n % args.log_every == 0:
+                print(f"[{n:04d}] {len(dets)} obj ({det_str}) | infer {infer_ms:.0f} ms | {fps:.2f} FPS"
+                      + (f" | sent {sender.sent} failed {sender.failed}" if sender else ""))
+
+            if sender:
+                if now - last_offer >= send_interval:
+                    last_offer = now
+                    sender.offer(frame_bgr, {
+                        "device_id": args.device_id, "camera_id": args.camera_id, "frame_id": n,
+                        "captured_at": captured_at, "imgsz": args.imgsz, "conf": args.conf,
+                        "inference_ms": round(infer_ms, 1), "fps": round(fps, 2), "cpu_temp_c": cpu_temp_c(),
+                        "detections": [{"class": c, "confidence": round(s, 4), "bbox": b} for c, s, b in dets],
+                    })
+                else:
+                    throttled += 1
 
             annotated = r.plot()  # BGR with boxes and labels
             cv2.imwrite(os.path.join(args.save_dir, "latest.jpg"), annotated)
@@ -162,6 +259,9 @@ def main():
             print(f"SUMMARY: {n} frames in {elapsed:.1f}s = {n / elapsed:.2f} FPS overall | "
                   f"inference ms p50 {pct(infer_times, 0.5):.0f} p90 {pct(infer_times, 0.9):.0f} | "
                   f"peak RSS {peak_rss:.0f} MB | CPU {cpu_temp_c():.1f} C | threads {torch.get_num_threads()}")
+        if sender:
+            time.sleep(0.5)  # let an in-flight send finish before reporting
+            print(sender.summary(elapsed) + f" | throttled-by-send-fps {throttled}")
         print(f"Annotated frames in: {os.path.abspath(args.save_dir)}")
 
 
