@@ -66,7 +66,8 @@ The active production model (`models/best.pt`) was trained in Google Colab on th
 
 ### Dataset source (not in git — re-download it)
 
-Datasets and model weights are **not** in this repository (see `.gitignore`).
+Datasets are **not** in this repository (see `.gitignore`). The deployed model `models/best.pt` **is** (6.2 MB), so a
+fresh Raspberry Pi gets it with `git clone`; other `.pt` files (old checkpoints, stock YOLO weights) are not.
 
 - **Dataset:** *Floating Waste* **v10** on Roboflow Universe, workspace `garbagedetection-gqqya`, project
   `floating-waste`: https://universe.roboflow.com/garbagedetection-gqqya/floating-waste/dataset/10
@@ -78,7 +79,7 @@ Datasets and model weights are **not** in this repository (see `.gitignore`).
   `dataset_clean/floating_waste_v10/` (converts 27 polygon annotations to boxes), and
   `.venv\Scripts\python.exe scripts\verify_clean_dataset.py` (expect 7,644 label files, 21,111 boxes, 100% valid).
 - **Model weights:** `models/best.pt` (SHA-256 `d8248744d7d5ae2758f61637572f6726f60e938ceb53191be47ac66195741b78`) is
-  backed up outside git (OneDrive `AquaScan-backup\best.pt`). Verify the hash after restoring.
+  in this repository and also backed up on OneDrive (`AquaScan-backup\best.pt`). Verify the hash after cloning/restoring.
 
 ---
 

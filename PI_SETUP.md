@@ -17,6 +17,52 @@ p90 193 ms, server inference p50 55 ms. Pi at 46 °C, not throttled. Proof: `doc
 | Swap | 2 GiB zram (`/dev/zram0`, `rpi-swap`) — already present |
 | Pi Python deps | picamera2, requests, PIL, numpy: all system packages (apt). **No OpenCV** on the Pi: the client uses its PIL encoder |
 
+## 0. Fresh (re-flashed) Pi: get everything from GitHub
+
+The repository contains all code **and the model** (`models/best.pt`, 6.2 MB). Torch/ultralytics cannot come from
+GitHub (the torch wheel is 159 MB, over GitHub's 100 MB file limit) — they are installed offline from the laptop.
+
+1. **Flash** Raspberry Pi OS (64-bit) with Raspberry Pi Imager → settings: hostname `shanky`, user `shanki`,
+   **enable SSH**, Wi-Fi = the phone hotspot (`Shanky`). Boot the Pi, wait ~1 min.
+2. **SSH from the laptop.** The re-flash gave the Pi a new host key, so remove the old one first, then reinstall the
+   laptop's key (you type the Pi password once):
+   ```
+   ssh-keygen -R 172.24.21.132
+   ssh-keygen -R shanky.local
+   type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh shanki@shanky.local "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && hostname -I"
+   ```
+   The last command prints the Pi's new IP — use it everywhere below if it is not 172.24.21.132.
+3. **On the Pi — packages:** `sudo apt update && sudo apt install -y git python3-picamera2 python3-requests`
+   (picamera2 and requests are usually already installed on Raspberry Pi OS). Check the camera: `rpicam-hello --list-cameras`.
+4. **On the Pi — GitHub access** (the repo is private). Create a read-only deploy key on the Pi and add it on GitHub:
+   ```
+   ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 -C aquascan-pi
+   cat ~/.ssh/id_ed25519.pub
+   ```
+   GitHub → `Shravani07-tech/aquascan-ai` → Settings → **Deploy keys** → Add deploy key → paste → leave
+   "Allow write access" **off** → Add key.
+5. **On the Pi — clone and verify the model:**
+   ```
+   git clone git@github.com:Shravani07-tech/aquascan-ai.git ~/aquascan
+   sha256sum ~/aquascan/models/best.pt
+   ```
+   Must print `d8248744d7d5ae2758f61637572f6726f60e938ceb53191be47ac66195741b78`.
+6. **On the Pi — Plan A environment:** `cd ~/aquascan && python3 -m venv --system-site-packages .venv`
+   (Plan A needs nothing else; go to §6 smoke test).
+7. **Plan B (model on the Pi) — offline install from the laptop.** The wheels are kept on the laptop at
+   `C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\` (`pi_wheels` 40 files + `pi_wheels_cpu` 2 files). From the laptop:
+   ```
+   scp -r "C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\pi_wheels" "C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\pi_wheels_cpu" shanki@172.24.21.132:
+   ```
+   Then on the Pi (no internet needed):
+   ```
+   cd ~/aquascan && .venv/bin/pip install --no-index --find-links ~/pi_wheels_cpu --find-links ~/pi_wheels "torch==2.14.1+cpu" "torchvision==0.29.1+cpu" ultralytics
+   .venv/bin/python hardware/pi_edge_infer.py --model models/best.pt --image scratch_frame.jpg
+   ```
+   The sanity check must show `bottle:92.4%` (see "Plan B" below).
+8. **Later updates:** `cd ~/aquascan && git pull` (the model and code come down together; `.venv` and
+   `edge_output/` are not in git and are kept).
+
 ## 1. Find the laptop's IP (every session — the hotspot hands out addresses by DHCP)
 
 On the laptop (PowerShell):

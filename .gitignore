@@ -13,6 +13,8 @@ runs/
 outputs/
 *.zip
 *.pt
+# ...except the deployed model, so a fresh Raspberry Pi gets it with `git clone` (6.2 MB)
+!models/best.pt
 
 # Rolling webcam debug snapshot (overwritten every frame; may contain people)
 scratch/webcam_debug.jpg
