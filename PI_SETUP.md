@@ -47,20 +47,23 @@ GitHub (the torch wheel is 159 MB, over GitHub's 100 MB file limit) — they are
    sha256sum ~/aquascan/models/best.pt
    ```
    Must print `d8248744d7d5ae2758f61637572f6726f60e938ceb53191be47ac66195741b78`.
-6. **On the Pi — Plan A environment:** `cd ~/aquascan && python3 -m venv --system-site-packages .venv`
-   (Plan A needs nothing else; go to §6 smoke test).
-7. **Plan B (model on the Pi) — offline install from the laptop.** The wheels are kept on the laptop at
-   `C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\` (`pi_wheels` 40 files + `pi_wheels_cpu` 2 files). From the laptop:
+6. **(Recommended) copy the offline wheels from the laptop** so the install does not depend on the hotspot.
+   They are kept on the laptop at `C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\` (`pi_wheels` 40 files +
+   `pi_wheels_cpu` 2 files, ~740 MB, Python 3.13 only). From the laptop:
    ```
    scp -r "C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\pi_wheels" "C:\Users\Shailesh Mayekar\AquaScan-pi-wheels\pi_wheels_cpu" shanki@172.24.21.132:
    ```
-   Then on the Pi (no internet needed):
+   Skip this to install online instead (CPU-only torch from download.pytorch.org, ~200 MB of mobile data).
+7. **On the Pi — one command installs and checks everything:**
    ```
-   cd ~/aquascan && .venv/bin/pip install --no-index --find-links ~/pi_wheels_cpu --find-links ~/pi_wheels "torch==2.14.1+cpu" "torchvision==0.29.1+cpu" ultralytics
-   .venv/bin/python hardware/pi_edge_infer.py --model models/best.pt --image scratch_frame.jpg
+   cd ~/aquascan && bash hardware/setup_pi.sh
    ```
-   The sanity check must show `bottle:92.4%` (see "Plan B" below).
-8. **Later updates:** `cd ~/aquascan && git pull` (the model and code come down together; `.venv` and
+   It checks the OS, camera and model hash, creates `.venv` (with system packages, so picamera2 works), installs
+   CPU-only torch + ultralytics (offline wheels if present, otherwise online), and runs the sanity check, which
+   must find the bottle at ~92.4%. It stops with a clear message if anything is wrong, and is safe to re-run.
+8. **(Optional) auto-start edge mode on boot:** `bash hardware/install_edge_service.sh http://<LAPTOP_IP>:8000`
+   (shows the service file and asks before installing; see "Edge mode" for stop/disable).
+9. **Later updates:** `cd ~/aquascan && git pull` (code and model come down together; `.venv`, `edge.env` and
    `edge_output/` are not in git and are kept).
 
 ## 1. Find the laptop's IP (every session — the hotspot hands out addresses by DHCP)

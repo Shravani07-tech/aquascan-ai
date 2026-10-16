@@ -24,3 +24,7 @@ debug_frames/
 
 # Local-only evidence frames that contain people (never commit)
 scratch/private/
+
+# Pi runtime files (created on the Pi, never committed)
+edge.env
+edge_output/
